@@ -42,9 +42,37 @@ def load_model(checkpoint_path):
 
     model = construct_model(architecture, train_method, num_classes, in_channels)
     model.load_state_dict(model_state_dict)
-    print("Existing model was trained using {0}".format(train_method))
+    print(f"Existing model was trained using {train_method}")
 
     return model, starting_epoch, best_acc, train_method
+
+
+def adjust_model_for_new_method(model, method):
+    if model.architecture == "unet3d":
+        new_model = construct_model(
+            model.architecture, method, model.num_classes, model.in_channels
+        )
+        old_weight, old_bias = (
+            model.state_dict()["out_tr.final_conv.weight"],
+            model.state_dict()["out_tr.final_conv.bias"],
+        )
+        new_weight, new_bias = (
+            new_model.state_dict()["out_tr.final_conv.weight"],
+            new_model.state_dict()["out_tr.final_conv.bias"],
+        )
+        new_weight[:], new_bias[:] = 0, 0
+        new_weight[: model.num_classes], new_bias[: model.num_classes] = (
+            old_weight,
+            old_bias,
+        )
+        model.out_tr = new_model.out_tr
+        model.state_dict()["out_tr.final_conv.weight"].data.copy_(new_weight)
+        model.state_dict()["out_tr.final_conv.bias"].data.copy_(new_bias)
+        return model
+
+    else:
+        print("2-stage learning not implemented for given architecture. Aborting...")
+        return
 
 
 def put_model_to_device(model):

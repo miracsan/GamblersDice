@@ -1,12 +1,21 @@
 import sys
 import csv
 import time
-
+import os
 from shutil import rmtree
+
+import numpy as np
+import torch
+from torch.cuda.amp import autocast, GradScaler
 from torch.autograd import Variable
-from utils import *
-from dataloaders import *
-from constructModel import *
+
+from constructModel import (
+    get_num_pool_ops,
+    adjust_model_for_new_method,
+    put_model_to_device,
+    load_model,
+    construct_model,
+)
 from constructLoss import construct_loss
 from constructOptimizer import (
     construct_optimizer,
@@ -14,8 +23,13 @@ from constructOptimizer import (
     adjust_optimizer_for_new_hyperparams,
 )
 from constructScheduler import construct_scheduler
-
-from torch.cuda.amp import autocast, GradScaler
+from dataloaders import construct_dataloaders
+from utils import (
+    AverageMeter,
+    get_dice_score,
+    create_checkpoint,
+    get_configs_from_dataset,
+)
 
 
 def train_cnn(
@@ -23,7 +37,6 @@ def train_cnn(
     architecture,
     alias,
     dataset,
-    pretrain,
     num_epochs,
     learning_rate,
     weight_decay,
@@ -32,7 +45,6 @@ def train_cnn(
     impatience,
     optimizer_config,
     scheduler_config,
-    find_new_best,
     use_model,
 ):
 
@@ -42,7 +54,7 @@ def train_cnn(
     if use_model:
         model, starting_epoch, best_acc, prev_method = load_model(use_model)
         if method != prev_method:
-            model = adjust_model_for_new_method(model, method, architecture)
+            model = adjust_model_for_new_method(model, method)
         model = put_model_to_device(
             model
         )  # Model needs to be put into device before constructing the optimizer
@@ -79,7 +91,6 @@ def train_cnn(
             logwriter.writerow(["NUM_EPOCHS : ", num_epochs])
             logwriter.writerow(["LEARNING_RATE : ", learning_rate])
             logwriter.writerow(["WEIGHT_DECAY : ", weight_decay])
-            logwriter.writerow(["PRETRAIN : ", pretrain])
             logwriter.writerow(
                 ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
             )
@@ -96,12 +107,7 @@ def train_cnn(
     # train model
     since = time.time()
 
-    if pretrain:
-        model = pretrain_model(
-            architecture, model, method, dataloaders, optimizer, scheduler, alias=alias
-        )
-
-    model = train_model(
+    train_model(
         model,
         method,
         dataloaders,
@@ -113,7 +119,6 @@ def train_cnn(
         impatience,
         alias=alias,
         best_acc=best_acc,
-        find_new_best=find_new_best,
     )
 
     time_elapsed = time.time() - since
@@ -136,7 +141,6 @@ def train_model(
     impatience_limit,
     alias,
     best_acc=0.0,
-    find_new_best=False,
 ):
     impatience = 0
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -159,8 +163,8 @@ def train_model(
             else:
                 model.train(False)
 
-            accMeter = AverageMeter()
-            lossMeter = AverageMeter()
+            acc_meter = AverageMeter()
+            loss_meter = AverageMeter()
 
             # iterate over all data in train/val dataloader:
             for batch_num, (inputs, labels, _) in enumerate(dataloaders[phase]):
@@ -188,8 +192,8 @@ def train_model(
                     get_dice_score(outputs[:, :num_classes], labels) * 100
                 )  # num_classes is used to handle extra class case
 
-                lossMeter.update(loss.item(), batch_size)
-                accMeter.update(accuracy, batch_size)
+                loss_meter.update(loss.item(), batch_size)
+                acc_meter.update(accuracy, batch_size)
 
                 sys.stdout.write(
                     "\r Progress in the epoch:     %.3f"
@@ -197,8 +201,8 @@ def train_model(
                 )  # keep track of the progress
                 sys.stdout.flush()
 
-            epoch_loss = lossMeter.avg
-            epoch_acc = accMeter.avg
+            epoch_loss = loss_meter.avg
+            epoch_acc = acc_meter.avg
 
             if phase == "train":
                 last_train_loss = epoch_loss
@@ -212,8 +216,7 @@ def train_model(
                 )
 
                 # Create checkpoint for the best model
-                if np.mean(epoch_acc) > np.mean(best_acc) or find_new_best:
-                    find_new_best = 0
+                if np.mean(epoch_acc) > np.mean(best_acc):
                     impatience = 0
                     best_acc, best_loss, best_epoch = epoch_acc, epoch_loss, epoch
                     create_checkpoint(

@@ -151,9 +151,6 @@ def prepare_covid19(dataset_dir, build_dir, build=0):
 def prepare_whs(dataset_dir, build_dir, build=0):
     if build:
         rmtree(build_dir, ignore_errors=True)
-        # main_path = "/content/drive/My Drive/MiracGamblers/data/MM-WHS/"
-        # raw_path = os.path.join(main_path, "Raw")
-        # processed_path = os.path.join(main_path, "Processed")
 
         train_folder = os.path.join(build_dir, "train")
         val_folder = os.path.join(build_dir, "val")
@@ -306,9 +303,6 @@ def prepare_spleen(dataset_dir, build_dir, build=0):
 def prepare_thor(dataset_dir, build_dir, build=0):
     if build:
         rmtree(build_dir, ignore_errors=True)
-        # main_path = "/content/drive/My Drive/MiracGamblers/data/Thor/"
-        # raw_path = os.path.join(main_path, "Raw")
-        # processed_path = os.path.join(main_path, "Processed")
 
         train_folder = os.path.join(build_dir, "train")
         val_folder = os.path.join(build_dir, "val")

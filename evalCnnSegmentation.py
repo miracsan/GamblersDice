@@ -3,8 +3,9 @@ import csv
 import copy
 import pandas as pd
 import numpy as np
+import torch
+import torch.nn.functional as F
 
-from lossFunctions import *
 from utils import (
     AverageMeter,
     mc_dropout_confidence,
@@ -14,7 +15,6 @@ from utils import (
 
 
 def eval_cnn(model, dataloaders, eval_method, alias, save_vars):
-
     (
         one_hot_predictions_list,
         labels_list,
@@ -31,7 +31,7 @@ def eval_cnn(model, dataloaders, eval_method, alias, save_vars):
     )
     del dimensionless_confidence_list
     _, _, _, dimensionless_val_confidence_list = get_evals_from_dataloader(
-        model, dataloaders["val"], eval_method, alias, save_vars=False, only_conf=True
+        model, dataloaders["val"], eval_method, alias, save_uncs=False, only_conf=True
     )
 
     logpath = os.path.join("results", alias, "log_test")
@@ -64,7 +64,7 @@ def eval_cnn(model, dataloaders, eval_method, alias, save_vars):
                 np.array(dimensionless_val_confidence_list) >= threshold
             ) / len(dimensionless_val_confidence_list)
             valid_coverage = np.round(valid_coverage, 3)
-            diceMeter = AverageMeter()
+            dice_meter = AverageMeter()
 
             for i in range(len(one_hot_predictions_list)):
                 one_hot_predictions = one_hot_predictions_list[i]
@@ -89,7 +89,7 @@ def eval_cnn(model, dataloaders, eval_method, alias, save_vars):
                     denominator_term = onehot_preds_sum + labels_sum + 0.0001
 
                     dice_scores = numerator_term / denominator_term
-                    diceMeter.update(dice_scores, 1)
+                    dice_meter.update(dice_scores, 1)
 
             logwriter.writerow(
                 [
@@ -97,14 +97,14 @@ def eval_cnn(model, dataloaders, eval_method, alias, save_vars):
                     thr_type,
                     np.round(valid_coverage * 100, 3),
                     np.round(coverage * 100, 3),
-                    *np.round(diceMeter.avg, 4),
+                    *np.round(dice_meter.avg, 4),
                 ]
             )
 
 
 def get_conv_thresholds_from_dataloader(model, dataloader, eval_method, coverages):
     _, _, _, dimensionless_confidence_list = get_evals_from_dataloader(
-        model, dataloader, eval_method, save_vars=False, only_conf=True
+        model, dataloader, eval_method, save_uncs=False, only_conf=True
     )
     threshold_list = get_conv_thresholds_from_conf_list(
         dimensionless_confidence_list, coverages
@@ -121,7 +121,7 @@ def get_conv_thresholds_from_conf_list(dimensionless_confidence_list, coverages)
 
 
 def get_evals_from_dataloader(
-    model, dataloader, eval_method, alias=None, save_vars=False, only_conf=False
+    model, dataloader, eval_method, alias=None, save_uncs=False, only_conf=False
 ):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -196,14 +196,14 @@ def get_evals_from_dataloader(
                 confidences_list.append(confidences)
             dimensionless_confidence_list.extend(confidences.reshape(-1))
 
-            if save_vars:
+            if save_uncs:
                 assert inputs.shape[1] == 1  # Only 1-channel input is accepted
                 visualization_path = os.path.join(
                     "results", alias, "visualization", eval_method
                 )
 
                 for i in range(batch_size):
-                    filename = filenames[i][:-4]  # + ".nii.gz";
+                    filename = filenames[i][:-4]
                     save_path = os.path.join(visualization_path, filename)
                     os.makedirs(save_path, exist_ok=True)
 

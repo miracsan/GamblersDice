@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import os
 from utils import get_configs_from_dataset
 
+
 class SegmDataset(Dataset):
     def __init__(
         self,
@@ -14,7 +15,7 @@ class SegmDataset(Dataset):
     ):
 
         self.transform = transform
-        self.target_transform = target_transform  # TODO: Does not currently support random transforms! Something like image, label = transform(image, label) should be used for it. Look at the VisionDataset class under torchvision : print(inspect.getsource(VisionDataset))
+        self.target_transform = target_transform
         self.path_to_processed_folder = path_to_processed_folder
         self.fold = fold
         self.output_filenames = output_filenames

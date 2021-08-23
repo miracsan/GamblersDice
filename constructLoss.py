@@ -1,5 +1,12 @@
-from lossFunctions import *
 import torch.nn as nn
+
+from lossFunctions import (
+    CheatersDiceLoss,
+    FaultDetectorDiceLoss,
+    GamblersDiceLoss,
+    RankingDiceLoss,
+    DiceLoss,
+)
 
 
 def construct_loss(method, alpha, lamda, weights, *args):
@@ -17,8 +24,9 @@ def construct_loss(method, alpha, lamda, weights, *args):
         criterion = DiceLoss()
     elif method == "dice_ignore":
         criterion = DiceLoss(ignore_bg=True)
-    else:
+    elif method == "ce":
         raise NotImplementedError
+    else:
         criterion = nn.CrossEntropyLoss()
 
     return criterion

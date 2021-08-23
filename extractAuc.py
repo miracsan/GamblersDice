@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def extract_auc_scores(alias, thr_type="test", cov_checkpoints=90):
+def extract_auc_scores(alias, cov_checkpoints=90, thr_type="test"):
     if type(cov_checkpoints) is int:
         cov_checkpoints = [cov_checkpoints]
 
@@ -88,10 +88,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--alias",
-        help="under what folder name the models are saved",
-        default="baseline_segmentation",
+        help="the alias of the experiment that we want to calculate AUCs for",
+        default="dice_covid19",
     )
-    parser.add_argument("--thr-type", help="val, test", default="val")
     parser.add_argument(
         "--covs",
         help="end-coverage values for which the AUC should be calculated",
@@ -101,4 +100,4 @@ if __name__ == "__main__":
     )
 
     options = parser.parse_args()
-    extract_auc_scores(options.alias, options.thr_type, options.covs)
+    extract_auc_scores(options.alias, options.covs)
