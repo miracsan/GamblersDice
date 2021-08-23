@@ -1,9 +1,9 @@
-#Gambler's Dice
+# Gambler's Dice
 
 Code for the paper "[Learning to Abstain: Gambler's Dice](https://github.com/miracsan/GamblersDice)" by Mirac Sanisoglu 
 and Seong Tae Kim
 
-##Getting Started
+## Getting Started
 The code supports four different datasets for experiments:
 * [Covid19](https://zenodo.org/record/3757476#.Xpz8OcgzZPY)
 * [MMWHS](http://www.sdspeople.fudan.edu.cn/zhuangxiahai/0/mmwhs/) (only the CT subset)
@@ -23,7 +23,7 @@ where *dataset_name* is one of [Covid19, MM-WHS, Spleen, Thor].
 
 The functions under *dataPreparation.py* can be used to process the raw files and put them inside the expected directories.
 
-##How to Run
+## How to Run
 To train a network using our proposed Gambler's Dice (with an alpha hyperparameter of 0.1) on the MM-WHS dataset,
 ```
 python3 main.py --alias 'gamblers_α_0.1_whs' --method 'gamblers_dice' --arch 'unet3d' --dataset 'whs' --alpha 0.1
@@ -52,7 +52,7 @@ python3 main.py --alias 'dice_whs' --method 'dice' --arch 'unet3d' --dataset 'wh
 | imp 	| [int] 	|  abort training if no improvement in the last X epochs | 15	|
 
 
-##Evaluation
+## Evaluation
 To obtain the Dice scores at different coverages, run *evalScript.py*, specifying the following arguments:
 
 | Args 	| Type 	| Description 	| Default|
